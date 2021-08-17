@@ -53,7 +53,6 @@ $(BUILD_DIR)/$(PROJ).bin: $(BUILD_DIR)/$(PROJ).asc
 
 $(BUILD_DIR)/$(PROJ).rpt: $(BUILD_DIR)/$(PROJ).asc
 	@mkdir -p $(@D)
-	icetime -d $(DEVICE) -c $(FREQ) -mtr $@ $<
 
 $(BUILD_DIR)/i2c_state_machine_tb: $(SIM_DIR)/i2c_state_machine_tb.v $(ICE40_LIBS) $(ALL_SRCS)
 	@mkdir -p $(@D)
@@ -74,7 +73,7 @@ prog: $(BUILD_DIR)/$(PROJ).bin
 
 sudo-prog: $(BUILD_DIR)/$(PROJ).bin
 	@echo 'Executing prog as root!!!'
-	sudo dfu-util --device 1d50:6156 --alt 0 -R --download $<
+	sudo dfu-util --device 1d50:6159:1d50:6156 --alt 0 -R --download $<
 
 clean:
 	rm -rf $(BUILD_DIR) obj_dir $(DRAW_DIR)
