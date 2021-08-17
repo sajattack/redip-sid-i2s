@@ -1,4 +1,4 @@
-00 30 42 60 // Turn off startup power supplies to save power
+00 30 40 60 // Regulator setup (VDD OFF, provided externally)
 00 24 00 6c // Configure the charge pump to use the VDDIO rail
 00 28 1f 0e // 1.575V VAG_VAL / -50% BIAS_CTRL
 00 2c 03 22 // LINEOUT reference voltage = VDDIO/2 / bias current = 0.36 mA

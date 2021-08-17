@@ -19,9 +19,7 @@ module i2c_state_machine (
 	input  wire led,
 
 	// Control
-	input  wire go,
-	output wire rdy,
-	output reg done = 1'b0,
+	output reg done,
 
 	// Clock / Reset
 	input  wire clk,
@@ -45,7 +43,7 @@ module i2c_state_machine (
 		ST_CMD_VAL_HI   = 12,
 		ST_CMD_VAL_LO   = 13,
 		ST_CMD_STOP     = 14,
-		ST_POST_PAUSE   = 5;
+		ST_FINISHED   = 5;
 
 	reg   [3:0] state;
 	reg   [3:0] state_nxt;
@@ -72,8 +70,6 @@ module i2c_state_machine (
 	reg         i2c_m_stb;
 	wire        i2c_m_ready;
 
-	reg [6:0] count = 0;
-
 
 	// FSM
 	// ---
@@ -94,8 +90,7 @@ module i2c_state_machine (
 		// Transitions
 		case (state)
 			ST_IDLE:
-				if (go)
-					state_nxt = ST_PRE_PAUSE;
+				state_nxt = ST_PRE_PAUSE;
 
 			ST_PRE_PAUSE:
 				if (timer_tick)
@@ -126,20 +121,16 @@ module i2c_state_machine (
 					state_nxt = ST_CMD_STOP;
 
 			ST_CMD_STOP:
-                if (i2c_m_ready & ~i2c_m_stb & ~done) begin
-					state_nxt = ST_CMD_START;
-				end
+				if (i2c_m_ready & ~i2c_m_stb)
+					state_nxt = done ? ST_FINISHED : ST_CMD_START;
 
-			ST_POST_PAUSE:
-				if (timer_tick)
-					state_nxt = ST_IDLE;
+			ST_FINISHED:
+					state_nxt = ST_FINISHED;
 
 			default:
 					state_nxt = ST_IDLE;
 		endcase
 	end
-
-	assign rdy = (state == ST_IDLE);
 
 
 	// Timer
@@ -158,7 +149,7 @@ module i2c_state_machine (
 	// IO
 	// --
 
-    // Instance
+	// Instance
 	SB_IO #(
 		.PIN_TYPE(6'b1010_01),	// PIN_OUTPUT_TRISTATE / PIN_INPUT
 		.PULLUP(1'b0),
@@ -209,18 +200,18 @@ module i2c_state_machine (
 		.rst      (rst)
 	);
 
-	reg [7:0] mem [79:0];
-    initial begin
-        // path is relative to makefile's directory
-       $readmemh("rtl/i2s_init_data.hex", mem);
-    end
+	reg [7:0] mem [0:79];
+	initial begin
+		// path is relative to makefile's directory
+		$readmemh("rtl/i2s_init_data.hex", mem);
+	end
 
 	// Control
 	always @(*)
 		case (state)
 			ST_CMD_I2C_ADDR: i2c_m_data_in = 8'b00010100;
 			ST_CMD_REG_HI:   i2c_m_data_in = byte0;
-			ST_CMD_REG_LO:   i2c_m_data_in = byte1; 
+			ST_CMD_REG_LO:   i2c_m_data_in = byte1;
 			ST_CMD_VAL_HI:   i2c_m_data_in = byte2;
 			ST_CMD_VAL_LO:   i2c_m_data_in = byte3;
 			default:         i2c_m_data_in = 8'bxxxxxxxx;
@@ -243,34 +234,32 @@ module i2c_state_machine (
 	always @(posedge clk)
 		i2c_m_stb <= (state_nxt != ST_IDLE) & (state_nxt != state) & state_nxt[3];
 
-	reg [7:0] byte0, byte1, byte2, byte3 = 8'b0;
-    reg [3:0] prev_state;
-    wire last_transaction;
 
-    always @(posedge clk) begin
-        if (state != prev_state) begin
-            if (state == ST_CMD_STOP) begin
-                if (count <= 7'd19) begin
-                    byte0 <= mem[count*4+0];
-                    byte1 <= mem[count*4+1];
-                    byte2 <= mem[count*4+2];
-                    byte3 <= mem[count*4+3];
-                end
-                else begin
-                    done <= 1'b1;
-                    byte0 <= 1'b0;
-                    byte1 <= 1'b0;
-                    byte2 <= 1'b0;
-                    byte3 <= 1'b0;
-                end
-                count <= count + 1;
-            end
-        end
-        prev_state <= state;
+	wire      next;
+	reg [7:0] byte0, byte1, byte2, byte3;
+	reg [6:0] count;
+
+	assign next = ((state == ST_CMD_START) && i2c_m_ready && ~i2c_m_stb);
+
+    always @(posedge clk or posedge rst)
+	begin
+		if (rst) begin
+			done  <= 1'b0;
+			count <= 0;
+		end else if (next) begin
+			count <= count + 1;
+			done <= count >= 6'd19;
+		end
 	end
 
-	
-
-    assign last_transaction = count >= 79;
+    always @(posedge clk)
+	begin
+		if (next) begin
+			byte0 <= mem[count*4+0];
+			byte1 <= mem[count*4+1];
+			byte2 <= mem[count*4+2];
+			byte3 <= mem[count*4+3];
+		end
+	end
 
 endmodule // codec_fix

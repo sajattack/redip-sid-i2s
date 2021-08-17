@@ -45,7 +45,7 @@ $(BUILD_DIR)/$(PROJ).json: $(TOPFILE) $(ALL_SRCS)
 
 $(BUILD_DIR)/$(PROJ).asc: $(BUILD_DIR)/$(PROJ).json $(BOARD).pcf
 	@mkdir -p $(@D)
-	nextpnr-ice40 -ql $(BUILD_DIR)/$(PROJ).nplog  --$(DEVICE) --package $(PACKAGE) --freq $(FREQ) --asc $@ --pcf $(BOARD).pcf --pcf-allow-unconstrained --seed $(SEED)  --json $<
+	nextpnr-ice40 -ql $(BUILD_DIR)/$(PROJ).nplog  --$(DEVICE) --package $(PACKAGE) --freq $(FREQ) --asc $@ --pcf $(BOARD).pcf --seed $(SEED)  --json $<
 
 $(BUILD_DIR)/$(PROJ).bin: $(BUILD_DIR)/$(PROJ).asc
 	@mkdir -p $(@D)
@@ -57,13 +57,17 @@ $(BUILD_DIR)/$(PROJ).rpt: $(BUILD_DIR)/$(PROJ).asc
 
 $(BUILD_DIR)/i2c_state_machine_tb: $(SIM_DIR)/i2c_state_machine_tb.v $(ICE40_LIBS) $(ALL_SRCS)
 	@mkdir -p $(@D)
-	iverilog -Wall -Wno-portbind -Wno-timescale -DSIM=1 -DNO_ICE40_DEFAULT_ASSIGNMENTS -o $@  $^
+	iverilog -g2012 -Wall -Wno-portbind -Wno-timescale -DSIM=1 -DNO_ICE40_DEFAULT_ASSIGNMENTS -o $@  $^
 
 $(BUILD_DIR)/i2s_master_tb: $(SIM_DIR)/i2s_master_tb.v $(SRC_DIR)/i2s_master.v
 	@mkdir -p $(@D)
-	iverilog -Wall -Wno-portbind -DSIM=1 -DNO_ICE40_DEFAULT_ASSIGNMENTS -o $@  $^
+	iverilog -g2012 -Wall -Wno-portbind -DSIM=1 -DNO_ICE40_DEFAULT_ASSIGNMENTS -o $@  $^
 
-sim: $(BUILD_DIR)/i2c_state_machine_tb $(BUILD_DIR)/i2s_master_tb
+$(BUILD_DIR)/top_tb: $(SIM_DIR)/top_tb.v $(ICE40_LIBS) $(ALL_SRCS) $(TOPFILE)
+	@mkdir -p $(@D)
+	iverilog -g2012 -Wall -Wno-portbind -Wno-timescale -DSIM=1 -DNO_ICE40_DEFAULT_ASSIGNMENTS -o $@  $^
+
+sim: $(BUILD_DIR)/i2c_state_machine_tb $(BUILD_DIR)/i2s_master_tb $(BUILD_DIR)/top_tb
 
 prog: $(BUILD_DIR)/$(PROJ).bin
 	dfu-util --device 1d50:6156 --alt 0 -R --download $<
