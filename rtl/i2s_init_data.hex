@@ -1,0 +1,20 @@
+00 30 42 60 // Turn off startup power supplies to save power
+00 24 00 6c // Configure the charge pump to use the VDDIO rail
+00 28 1f 0e // 1.575V VAG_VAL / -50% BIAS_CTRL
+00 2c 03 22 // LINEOUT reference voltage = VDDIO/2 / bias current = 0.36 mA
+00 3c 11 06 // Enable short detect mode for headphone L/R and center channel. Set short detect current trip level to 75mA.
+00 24 01 33 // Enable zero-cross detect for HP_OUT and ADC
+00 30 6a ff // Power up LINEOUT, HP, ADC, DAC (analog)
+00 02 00 73 // Power up I2S_IN, I2S_OUT, DAP, DAC, ADC (digital)
+00 2e 05 05 // Set volume
+00 04 00 02 // Configure SYS_FS to 48KHz and MCLK_FREQ to 256*Fs
+00 06 00 0b // Configure I2S clocks in master mode
+00 30 6f ff // Power up the PLL
+00 34 00 08 // Divide the input frequency by 2 (SYS_MCLK > 17MHz)
+00 32 81 7a // Clock dividers
+00 0a 00 70 // Route I2S_IN to DAP, Route DAP to DAC
+00 24 01 73 // Mute ADC, Enable ADC ZCD, Mute HP, enable HP ZCD, Select LINEIN, Mute LINEOUT
+00 24 00 63 // Unmute HP and LINEOUT
+00 10 3c 3c // 0dB DAC Volume
+00 0e 02 00 // Enable volume ramp
+00 24 00 62 // Unmute ADC
