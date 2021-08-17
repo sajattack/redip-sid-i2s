@@ -43,7 +43,7 @@ module i2c_state_machine (
 		ST_CMD_VAL_HI   = 12,
 		ST_CMD_VAL_LO   = 13,
 		ST_CMD_STOP     = 14,
-		ST_FINISHED   = 5;
+		ST_POST_PAUSE   = 5;
 
 	reg   [3:0] state;
 	reg   [3:0] state_nxt;
@@ -90,7 +90,8 @@ module i2c_state_machine (
 		// Transitions
 		case (state)
 			ST_IDLE:
-				state_nxt = ST_PRE_PAUSE;
+				if (~done)
+					state_nxt = ST_PRE_PAUSE;
 
 			ST_PRE_PAUSE:
 				if (timer_tick)
@@ -122,10 +123,11 @@ module i2c_state_machine (
 
 			ST_CMD_STOP:
 				if (i2c_m_ready & ~i2c_m_stb)
-					state_nxt = done ? ST_FINISHED : ST_CMD_START;
+					state_nxt = done ? ST_POST_PAUSE : ST_CMD_START;
 
-			ST_FINISHED:
-					state_nxt = ST_FINISHED;
+			ST_POST_PAUSE:
+				if (timer_tick)
+					state_nxt = ST_IDLE;
 
 			default:
 					state_nxt = ST_IDLE;
@@ -248,7 +250,7 @@ module i2c_state_machine (
 			count <= 0;
 		end else if (next) begin
 			count <= count + 1;
-			done <= count >= 6'd19;
+			done <= done | (count >= 6'd20);
 		end
 	end
 
