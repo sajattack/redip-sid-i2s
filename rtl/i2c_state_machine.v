@@ -70,6 +70,12 @@ module i2c_state_machine (
 	reg         i2c_m_stb;
 	wire        i2c_m_ready;
 
+	// Init RAM
+	reg   [7:0] ram_mem [0:255];
+	reg   [7:0] ram_dout;
+	reg   [7:0] ram_addr;
+	reg         ram_next;
+
 
 	// FSM
 	// ---
@@ -202,20 +208,14 @@ module i2c_state_machine (
 		.rst      (rst)
 	);
 
-	reg [7:0] mem [0:79];
-	initial begin
-		// path is relative to makefile's directory
-		$readmemh("rtl/i2s_init_data.hex", mem);
-	end
-
 	// Control
 	always @(*)
 		case (state)
 			ST_CMD_I2C_ADDR: i2c_m_data_in = 8'b00010100;
-			ST_CMD_REG_HI:   i2c_m_data_in = byte0;
-			ST_CMD_REG_LO:   i2c_m_data_in = byte1;
-			ST_CMD_VAL_HI:   i2c_m_data_in = byte2;
-			ST_CMD_VAL_LO:   i2c_m_data_in = byte3;
+			ST_CMD_REG_HI:   i2c_m_data_in = ram_dout;
+			ST_CMD_REG_LO:   i2c_m_data_in = ram_dout;
+			ST_CMD_VAL_HI:   i2c_m_data_in = ram_dout;
+			ST_CMD_VAL_LO:   i2c_m_data_in = ram_dout;
 			default:         i2c_m_data_in = 8'bxxxxxxxx;
 		endcase
 
@@ -237,31 +237,38 @@ module i2c_state_machine (
 		i2c_m_stb <= (state_nxt != ST_IDLE) & (state_nxt != state) & state_nxt[3];
 
 
-	wire      next;
-	reg [7:0] byte0, byte1, byte2, byte3;
-	reg [6:0] count;
+	// Init data RAM
+	// -------------
 
-	assign next = ((state == ST_CMD_START) && i2c_m_ready && ~i2c_m_stb);
+	// Init from file
+	initial
+		$readmemh("rtl/i2s_init_data.hex", ram_mem);
 
-    always @(posedge clk or posedge rst)
-	begin
-		if (rst) begin
-			done  <= 1'b0;
-			count <= 0;
-		end else if (next) begin
-			count <= count + 1;
-			done <= done | (count >= 6'd20);
-		end
-	end
+	// Sync read
+	always @(posedge clk)
+		ram_dout <= ram_mem[ram_addr];
 
-    always @(posedge clk)
-	begin
-		if (next) begin
-			byte0 <= mem[count*4+0];
-			byte1 <= mem[count*4+1];
-			byte2 <= mem[count*4+2];
-			byte3 <= mem[count*4+3];
-		end
-	end
+	// Control
+	always @(posedge clk)
+		if (state == ST_IDLE)
+			ram_addr <= 0;
+		else
+			ram_addr <= ram_addr + ram_next;
+
+	always @(*)
+		case (state)
+			ST_CMD_REG_HI: ram_next = i2c_m_stb;
+			ST_CMD_REG_LO: ram_next = i2c_m_stb;
+			ST_CMD_VAL_HI: ram_next = i2c_m_stb;
+			ST_CMD_VAL_LO: ram_next = i2c_m_stb;
+			default:       ram_next = 1'b0;
+		endcase
+
+
+	always @(posedge clk)
+		if (rst)
+			done <= 1'b0;
+		else
+			done <= done | ((state == ST_CMD_STOP) && (ram_dout == 8'hff));
 
 endmodule // codec_fix

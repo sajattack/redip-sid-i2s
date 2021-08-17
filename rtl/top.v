@@ -43,7 +43,7 @@ module top (
 		$readmemh("rtl/sine.hex", sine);
 
 	reg  [4:0] i2s_data_timer = 0;
-	reg [15:0] i2s_data = 0;
+	reg [15:0] i2s_data;
 	reg  [9:0] i2s_data_index = 0;
 
 	always @(posedge sys_clk) begin
@@ -132,6 +132,7 @@ module top (
 	// muACM
 	// -----
 
+`ifndef NO_MUACM
 	// Local signals
 	wire bootloader;
 	reg boot = 1'b0;
@@ -165,6 +166,7 @@ module top (
 		.S0   (1'b1),
 		.S1   (1'b0)
 	);
+`endif
 
 
 	// CRG

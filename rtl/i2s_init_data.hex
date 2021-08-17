@@ -59,3 +59,6 @@
 00 24 00 27
 00 10 3c 3c // 0dB DAC Volume
 00 0e 02 00 // Enable volume ramp
+
+// End sequence
+ff
